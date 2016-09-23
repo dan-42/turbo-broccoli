@@ -30,12 +30,17 @@ int main(int args, char **argc) {
   my_data d;
   d.name = "Hello broccoli";
   d.id = 42;
-  d.mapped_data = { {"1", "Hello"},
+  d.mapped_data = {
+                    {"1", "Hello"},
                     {"2", "World"},
-                   {"3", "trolololololo"}
+                    {"3", "trolololololo"},
+                    {"33", "trolololololo"},
+                    {"333", "trolololololo"},
+                    {"3333", "trolololololo"}
+
                   };
 
-  auto key = db.store(pre::json::to_json(d));
+  auto key = db.store("my_key_1", pre::json::to_json(d));
 
   std::cout << pre::bytes::to_hexstring(key.second.data(), key.second.size()) << std::endl;
 
@@ -44,5 +49,23 @@ int main(int args, char **argc) {
 
   std::cout << dd.second << std::endl;
 
+
+
+
+
+
+
+
+
   return 0;
+
+
+
+
+
+
+
+
+
+
 }

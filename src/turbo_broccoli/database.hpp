@@ -13,12 +13,53 @@
 #include <nlohmann/json.hpp>
 #include <pre/bytes/utils.hpp>
 
+#include <boost/fusion/include/adapt_struct.hpp>
+#include <pre/json/to_json.hpp>
+
 namespace trubo_broccoli {
 
 using key_t        = std::array<uint8_t, 20>;
 using result_value = std::pair<bool, nlohmann::json>;
 using result_key   = std::pair<bool, key_t>;
 namespace fs = boost::filesystem;
+
+
+namespace detail {
+    template<class T>
+    using enable_if_is_adapted_struct_t = typename std::enable_if<
+      std::is_same<
+        typename boost::fusion::traits::tag_of<T>::type,
+        boost::fusion::struct_tag
+      >::value
+    ,T>::type;
+}
+
+
+struct blobb {
+
+  using tags_t = std::vector<std::string>;
+
+  blobb(const std::string& key, const nlohmann::json& data, const tags_t& tag) :  {
+
+  }
+
+
+  template<typename T, detail::enable_if_is_adapted_struct_t<T>* = nullptr>
+  blobb(const std::string& key, const T& t)  : {
+
+  }
+
+  std::string key;
+  std::vector<std::string> tags;
+  std::string data;
+  ::size_t version;
+};
+}
+
+BOOST_FUSION_ADAPT_STRUCT(turbo_broccoli::blobb, key, tags, data, version) ;
+
+
+namespace trubo_broccoli {
 
 struct database {
 
@@ -60,16 +101,17 @@ struct database {
   }
 
 
-  result_key store(const nlohmann::json& value) {
+  result_key store(const std::string& key_name, const nlohmann::json& value) {
     static const result_key failed_result{false, nil_key()};
+
+
     auto binary_data = value.dump(2);
-    auto key = calculate_key(binary_data);
-    if( fs::exists(to_filename(key) ) ) {
-      return {true, key};
+    auto key = calculate_key(key_name);
+    if(! fs::exists(to_filename(key) ) ) {
+      create_folder(key);
     }
-    else {
       try {
-        create_folder(key);
+
         std::ofstream ofs(to_filename(key).generic_string(), std::fstream::out | std::fstream::trunc);
         ofs.exceptions ( std::ifstream::badbit );
         ofs << binary_data << std::endl;
@@ -80,7 +122,7 @@ struct database {
       catch(...) {
 
       }
-    }
+
 
     return failed_result;
   }
