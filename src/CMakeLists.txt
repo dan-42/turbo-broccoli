@@ -27,7 +27,7 @@ list (INSERT _COMPILE_FLAGS 0
                     )
 
 
-IF(CMAKE_BUILD_TYPE STREQUAL Debug)
+#IF(CMAKE_BUILD_TYPE STREQUAL Debug)
 
     list (APPEND _COMPILE_FLAGS  
                     -g
@@ -42,27 +42,27 @@ IF(CMAKE_BUILD_TYPE STREQUAL Debug)
         )
     endif()
     
-ELSE()
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        #set (CMAKE_EXE_LINKER_FLAGS " -Wl,--gc-sections -flto")
-        set (CMAKE_EXE_LINKER_FLAGS " -Wl,--gc-sections ")
+#ELSE()
+#    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#        #set (CMAKE_EXE_LINKER_FLAGS " -Wl,--gc-sections -flto")
+#        set (CMAKE_EXE_LINKER_FLAGS " -Wl,--gc-sections ")
 
-        list(APPEND _COMPILE_FLAGS
-                -fvisibility=hidden                
-                -ffunction-sections
-                -fdata-sections
-               # -flto 
-               # -fuse-linker-plugin                        
-        )
+#        list(APPEND _COMPILE_FLAGS
+#                -fvisibility=hidden                
+#                -ffunction-sections
+#                -fdata-sections
+#               # -flto 
+#               # -fuse-linker-plugin                        
+#        )
 
         
         
-    endif()
-    list(APPEND _COMPILE_FLAGS        
-                -Os         
-                -s                       
-        )    
-ENDIF()
+#    endif()
+#    list(APPEND _COMPILE_FLAGS        
+#                -Os         
+#                -s                       
+#        )    
+#ENDIF()
 
 
 
