@@ -98,7 +98,6 @@ struct database {
     static const result_key failed_result{false, turbo_broccoli::types::nil_key() };
 
     if(record_exists(new_blob)) {
-       // update
       /*
        * read all tags and update them!
        */
@@ -212,7 +211,7 @@ private:
 
 
   /*
-   * \brief return list of all elmenets which are only in a
+   * \brief return list of all elements that are only in a
    * a{0, 1, 2, 3, 4}
    * b{3, 4, 5, 6, 7}
    * d{0, 1, 2}
@@ -227,11 +226,11 @@ private:
            break;
          }
        }
-       if(contains_b_i) {
+
+       if(!contains_b_i) {
          d.push_back(a_i);
        }
     }
-
     return d;
   }
 

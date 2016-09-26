@@ -70,6 +70,10 @@ struct blob {
     return data_;
   }
 
+  inline void data(const std::string& d)  {
+    data_ = d;
+  }
+
   std::string key_;
   std::string data_;
   tag_list tag_list_;
