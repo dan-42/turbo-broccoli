@@ -19,7 +19,7 @@
 #include <turbo_broccoli/type/result_key.hpp>
 
 #include <turbo_broccoli/detail/utils.hpp>
-
+#include <turbo_broccoli/detail/storage.hpp>
 
 namespace turbo_broccoli {
 
@@ -43,24 +43,26 @@ struct database {
     result_find result{};
     result.success = false;
 
-    if(!record_exists(key)) {
+
+
+    if(!value_exists(key)) {
       std::cout << "no record with key" << types::to_string(key) << std::endl;
       return result;
     }
 
-    auto record = read_record(key);
+    auto value = load_value(key);
 
-
-    if( is_blob(record)) {
+    if( is_blob(value)) {
       result.success = true;
-      result.results.push_back(detail::deserialize<blob>(record.data));
+      result.results.push_back(detail::deserialize<blob>(value.data));
+      return result;
     }
 
-    if(is_tag_list(record)) {
-      auto records = detail::deserialize<types::tagged_records>(record.data);
+    if(is_tag_list(value)) {
+      auto records = detail::deserialize<types::tagged_records>(value.data);
       for(auto& t : records.keys) {
         auto k = types::string_to_key(t);
-        if(record_exists(k)) {
+        if(value_exists(k)) {
 
           auto r = read_record(k);
           if( is_blob(r)) {
@@ -85,15 +87,15 @@ struct database {
 
     static const result_key failed_result{false, turbo_broccoli::types::nil_key() };
 
-    if(record_exists(new_blob)) {
+    if(value_exists(new_blob.key_hash())) {
       /*
        * read all tags and update them!
        */
       auto r = read_record(new_blob.key_hash());
       auto old_blob = detail::deserialize<blob>(r.data);
 
-      types::tag_list::list_type to_delete = diff( old_blob.tags().tags, new_blob.tags().tags);
-      types::tag_list::list_type to_add    = diff( new_blob.tags().tags, old_blob.tags().tags);
+      types::tag_list::list_type to_delete = detail::diff( old_blob.tags().tags, new_blob.tags().tags);
+      types::tag_list::list_type to_add    = detail::diff( new_blob.tags().tags, old_blob.tags().tags);
 
       for(auto& t : to_add ) {
         update_tag_add(t, types::to_string(new_blob.key_hash()));
@@ -101,10 +103,8 @@ struct database {
       for(auto& t : to_delete ) {
         update_tag_remove(t, types::to_string(new_blob.key_hash()));
       }
-
     }
     else {
-      detail::create_folder(path_, new_blob.key_hash());
       for(auto& t : new_blob.tags().tags ) {
         update_tag_add(t, types::to_string(new_blob.key_hash()));
       }
@@ -121,16 +121,13 @@ struct database {
 
 private:
 
-
-
-  inline bool record_exists(const blob& b) {
-    namespace fs = boost::filesystem;
-    return fs::exists(detail::to_filename(path_, b.key_hash()));
+  inline bool value_exists(const db_key& key) {
+    return storage_.record_exists(key);
   }
 
-  inline bool record_exists(const db_key& k) {
-    namespace fs = boost::filesystem;
-    return fs::exists(detail::to_filename(path_, k));
+  inline types::value_t load_value(const db_key& key) {
+    auto data = storage_.load(key);
+    return detail::deserialize<types::value_t>(data);
   }
 
   inline void write_blob(const blob& b) {
@@ -140,16 +137,12 @@ private:
     v.reccord_type = types::value_type::blob;
     v.key = b.key();
 
-    detail::create_folder(path_, b.key_hash());
-    detail::write_file(detail::to_filename(path_, b.key_hash()).generic_string(), detail::serialize(v));
-
-
-
+    storage_.store(b.key_hash(), detail::serialize(v));
   }
 
   inline types::value_t read_record(const db_key& k) {
     namespace fs = boost::filesystem;
-    auto tmp = detail::read_file(detail::to_filename(path_, k).generic_string() );
+    auto tmp = storage_.load(k);
     return detail::deserialize<types::value_t>(tmp);
   }
 
@@ -158,7 +151,7 @@ private:
     types::value_t v;
     types::tagged_records records;
 
-    if(record_exists(tag_key)) {
+    if(storage_.record_exists(tag_key)) {
       v = read_record(tag_key);
       if(types::is_tag_list(v)) {
         records = detail::deserialize<types::tagged_records>(v.data);
@@ -178,10 +171,9 @@ private:
       v.key           = tag_name;
       v.reccord_type  = types::value_type::tag_list;
       v.data          = detail::serialize(records);
-      detail::create_folder(path_, tag_key);
     }
     v.data          = detail::serialize(records);
-    detail::write_file(detail::to_filename(path_, tag_key).generic_string(), detail::serialize(v));
+    storage_.store(tag_key,  detail::serialize(v));
   }
 
   inline void update_tag_remove(const std::string& tag_name, const std::string& record_key) {
@@ -191,36 +183,11 @@ private:
     if(types::is_tag_list(v)) {
       types::tagged_records records = detail::deserialize<types::tagged_records>(v.data);
       records.keys.erase(std::remove(records.keys.begin(), records.keys.end(), record_key), records.keys.end());
-
       v.data = detail::serialize(records);
-      detail::write_file(detail::to_filename(path_, tag_key).generic_string(), detail::serialize(v));
+      storage_.store(tag_key,  detail::serialize(v));
     }
   }
 
-
-  /*
-   * \brief return list of all elements that are only in a
-   * a{0, 1, 2, 3, 4}
-   * b{3, 4, 5, 6, 7}
-   * d{0, 1, 2}
-   */
-  inline std::vector<std::string> diff(const std::vector<std::string>& a, const std::vector<std::string>& b) {
-    std::vector<std::string> d;
-    for(auto& a_i : a) {
-       bool contains_b_i{false};
-       for(auto& b_i : b) {
-         if(a_i.compare(b_i) == 0) {
-           contains_b_i = true;
-           break;
-         }
-       }
-
-       if(!contains_b_i) {
-         d.push_back(a_i);
-       }
-    }
-    return d;
-  }
 
   detail::storage storage_;
 

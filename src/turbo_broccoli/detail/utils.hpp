@@ -78,6 +78,29 @@ namespace turbo_broccoli { namespace detail {
   }
 
 
+  /*
+   * \brief return list of all elements that are only in a
+   * a{0, 1, 2, 3, 4}
+   * b{3, 4, 5, 6, 7}
+   * d{0, 1, 2}
+   */
+  inline std::vector<std::string> diff(const std::vector<std::string>& a, const std::vector<std::string>& b) {
+    std::vector<std::string> d;
+    for(auto& a_i : a) {
+       bool contains_b_i{false};
+       for(auto& b_i : b) {
+         if(a_i.compare(b_i) == 0) {
+           contains_b_i = true;
+           break;
+         }
+       }
+
+       if(!contains_b_i) {
+         d.push_back(a_i);
+       }
+    }
+    return d;
+  }
 
 } //detail
 } //turbo_broccoli

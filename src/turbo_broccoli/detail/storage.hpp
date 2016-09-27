@@ -16,6 +16,7 @@ namespace turbo_broccoli { namespace detail {
 struct storage {
 
   storage(const std::string& db) : prefix_(db) {
+    namespace fs = boost::filesystem;
     if(!fs::exists(prefix_) ) {
      if(!fs::create_directories(prefix_)) {
        throw std::runtime_error("cannot open db, cannot create directory: " + prefix_.generic_string());
@@ -31,7 +32,7 @@ struct storage {
   inline bool store(const turbo_broccoli::types::db_key &key, const std::string& data) {
     namespace fs = boost::filesystem;
     auto path = to_filename(key);
-    if(fs::exists(path) && fs::regular_file(path)) {
+    if(fs::exists(path) && fs::is_regular_file(path)) {
       return write_file(path.generic_string(), data);
     }
     else {
@@ -45,7 +46,7 @@ struct storage {
   inline std::string load(const turbo_broccoli::types::db_key &key) {
     namespace fs = boost::filesystem;
     auto path = to_filename(key);
-    if(fs::exists(path) && fs::regular_file(path)) {
+    if(fs::exists(path) && fs::is_regular_file(path)) {
       return read_file(path.generic_string());
     }
     return {};
@@ -54,10 +55,16 @@ struct storage {
   inline bool remove(const turbo_broccoli::types::db_key &key) {
     namespace fs = boost::filesystem;
     auto path = to_filename(key);
-    if(fs::exists(path) && fs::regular_file(path)) {
+    if(fs::exists(path) && fs::is_regular_file(path)) {
       return fs::remove(path);
     }
     return false;
+  }
+
+  inline bool record_exists(const turbo_broccoli::types::db_key &key) {
+    namespace fs = boost::filesystem;
+    auto file = to_filename(key);
+    return fs::exists(file) && fs::is_regular_file(file);
   }
 
 private:
@@ -78,15 +85,20 @@ private:
    return {};
   }
 
-  inline void write_file(const std::string& filename, const std::string& data) {
-   std::ofstream ofs(filename, std::ios::out | std::ios::binary | std::ios::trunc);
-   ofs.write(&data[0], data.size());
-   ofs.flags();
-   ofs.close();
+  inline bool write_file(const std::string& filename, const std::string& data) {
+    try {
+     std::ofstream ofs(filename, std::ios::out | std::ios::binary | std::ios::trunc);
+     ofs.write(&data[0], data.size());
+     ofs.flags();
+     ofs.close();
+     return true;
+    } catch(...) {
+      return false;
+    }
   }
 
 
-  inline void create_folder(const turbo_broccoli::types::db_key& key) {
+  inline bool create_folder(const turbo_broccoli::types::db_key& key) {
    namespace fs = boost::filesystem;
    return fs::create_directories(prefix_ / fs::path(pre::bytes::to_hexstring(key.data(), 2)));
   }
