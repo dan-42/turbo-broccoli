@@ -77,39 +77,7 @@ namespace turbo_broccoli { namespace detail {
     }
   }
 
-  // fastes c++ impl according to  http://insanecoding.blogspot.de/2011/11/how-to-read-in-file-in-c.html
-  inline std::string read_file(const std::string& filename) {
-    std::ifstream in(filename, std::ios::in | std::ios::binary);
-      if (in) {
-        std::string contents;
-        in.seekg(0, std::ios::end);
-        contents.resize(in.tellg());
-        in.seekg(0, std::ios::beg);
-        in.read(&contents[0], contents.size());
-        in.close();
-        return contents;
-      }
-      throw(errno);
-    return {};
-  }
 
-  inline void write_file(const std::string& filename, const std::string& data) {
-    std::ofstream ofs(filename, std::ios::out | std::ios::binary | std::ios::trunc);
-    ofs.write(&data[0], data.size());
-    ofs.flags();
-    ofs.close();
-  }
-
-
-  inline void create_folder(const boost::filesystem::path& prefix, const turbo_broccoli::types::db_key& key) {
-    namespace fs = boost::filesystem;
-    fs::create_directories(prefix / fs::path(pre::bytes::to_hexstring(key.data(), 2)));
-  }
-
-  inline boost::filesystem::path to_filename(const boost::filesystem::path& prefix, const turbo_broccoli::types::db_key &k) {
-    namespace fs = boost::filesystem;
-    return prefix / fs::path(pre::bytes::to_hexstring(&k[0], 2)) / fs::path(pre::bytes::to_hexstring(&k[2] , 18));
-  }
 
 } //detail
 } //turbo_broccoli

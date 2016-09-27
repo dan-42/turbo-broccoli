@@ -30,19 +30,7 @@ using types::result_find;
 
 struct database {
 
-  database(const std::string& path) : path_(path) {
-    namespace fs = boost::filesystem;
-
-    if(!fs::exists(path_) ) {
-      if(!fs::create_directories(path_)) {
-        throw std::runtime_error("cannot open db, cannot create directory: " + path_.generic_string());
-      }
-    }
-    else {
-      if(!fs::is_directory(path_)) {
-        throw std::runtime_error("cannot open db, is not a directory: " + path_.generic_string());
-      }
-    }
+  database(const std::string& path) : storage_(path) {
   }
 
 
@@ -234,8 +222,7 @@ private:
     return d;
   }
 
-  using path_t = boost::filesystem::path;
-  path_t path_;
+  detail::storage storage_;
 
 };
 
