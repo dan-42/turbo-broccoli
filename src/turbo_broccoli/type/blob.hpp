@@ -74,16 +74,17 @@ struct blob {
     data_ = d;
   }
 
-  std::string key_;
-  std::string data_;
-  tag_list tag_list_;
-  ::size_t version_;
+
+  std::string                   data_;
+  tag_list                      tag_list_;
+  std::string                   parent_1;
+  boost::optional<std::string>  parent_2;
 };
 
 } // type
 } //trubo_broccoli
 
-BOOST_FUSION_ADAPT_STRUCT(turbo_broccoli::types::blob, key_, data_, tag_list_, version_);
+BOOST_FUSION_ADAPT_STRUCT(turbo_broccoli::types::blob, data_, tag_list_, parent_1, parent_2);
 
 
 #endif /* SRC_TURBO_BROCCOLI_BLOB_HPP_ */

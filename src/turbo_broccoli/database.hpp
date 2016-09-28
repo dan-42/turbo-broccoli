@@ -8,8 +8,6 @@
 #ifndef SRC_TURBO_BROCCOLI_DATABASE_HPP_
 #define SRC_TURBO_BROCCOLI_DATABASE_HPP_
 
-#include <boost/filesystem.hpp>
-
 #include <turbo_broccoli/type/key.hpp>
 #include <turbo_broccoli/type/value.hpp>
 #include <turbo_broccoli/type/blob.hpp>
@@ -23,7 +21,21 @@
 
 namespace turbo_broccoli {
 
-using types::blob;
+struct database;
+
+struct blob {
+  //tag_list
+  //data
+  //parent_1
+  //parent_2
+  //how to handle merge issues?
+
+private:
+  database& db_;
+};
+
+
+
 using types::db_key;
 using types::result_key;
 using types::result_find;
@@ -52,22 +64,38 @@ struct database {
 
     auto value = load_value(key);
 
-    if( is_blob(value)) {
-      result.success = true;
-      result.results.push_back(detail::deserialize<blob>(value.data));
+
+    if(!is_reference(value)) {
+      std::cout << "no is_reference with key" << types::to_string(key) <<  " DATA INCONSISTENT "<< std::endl;
       return result;
     }
 
-    if(is_tag_list(value)) {
-      auto records = detail::deserialize<types::tagged_records>(value.data);
+    auto head_version = types::string_to_key(value.data);
+    if(!value_exists(head_version)) {
+      std::cout << "no head_version with key" << types::to_string(key) <<  " DATA INCONSISTENT "<< std::endl;
+      return result;
+    }
+
+    auto head_version_value = load_value(head_version);
+>>>>>>>
+    if( is_blob(head_version_value)) {
+      result.success = true;
+      result.results.push_back(detail::deserialize<types::blob>(head_version_value.data));
+      return result;
+    }
+
+    if(is_tag_list(head_version_value)) {
+
+      types::tagged_records records = detail::deserialize<types::tagged_records>(head_version_value.data);
       for(auto& t : records.keys) {
+
         auto k = types::string_to_key(t);
         if(value_exists(k)) {
 
           auto r = read_record(k);
           if( is_blob(r)) {
             result.success = true;
-            result.results.push_back(detail::deserialize<blob>(r.data));
+            result.results.push_back(detail::deserialize<types::blob>(r.data));
           }
           else {
             std::cout << "inconsistent: record is not blob " << t << std::endl;
@@ -79,11 +107,12 @@ struct database {
       }
     }
 
+
     return result;
   }
 
 
-  result_key store(const blob& new_blob) {
+  result_key store(const types::blob& new_blob) {
 
     static const result_key failed_result{false, turbo_broccoli::types::nil_key() };
 
@@ -92,7 +121,7 @@ struct database {
        * read all tags and update them!
        */
       auto r = read_record(new_blob.key_hash());
-      auto old_blob = detail::deserialize<blob>(r.data);
+      auto old_blob = detail::deserialize<types::blob>(r.data);
 
       types::tag_list::list_type to_delete = detail::diff( old_blob.tags().tags, new_blob.tags().tags);
       types::tag_list::list_type to_add    = detail::diff( new_blob.tags().tags, old_blob.tags().tags);
@@ -130,7 +159,7 @@ private:
     return detail::deserialize<types::value_t>(data);
   }
 
-  inline void write_blob(const blob& b) {
+  inline void write_blob(const types::blob& b) {
     namespace fs = boost::filesystem;
     types::value_t v;
     v.data = detail::serialize(b);
