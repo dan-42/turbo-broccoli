@@ -11,12 +11,14 @@
 #include <string>
 #include <vector>
 #include <boost/fusion/include/adapt_struct.hpp>
+#include <turbo_broccoli/type/tag_list.hpp>
 
 namespace turbo_broccoli { namespace types {
 
+
+
 struct tag_list {
-  typedef std::vector<std::string> list_type;
-  list_type tags;
+  tag_list_type tags;
 };
 
 }}

@@ -10,7 +10,6 @@
 
 #include <turbo_broccoli/type/key.hpp>
 #include <turbo_broccoli/type/value.hpp>
-#include <turbo_broccoli/type/blob.hpp>
 #include <turbo_broccoli/type/tags.hpp>
 #include <turbo_broccoli/type/tagged_records.hpp>
 #include <turbo_broccoli/type/result_find.hpp>
@@ -18,101 +17,133 @@
 
 #include <turbo_broccoli/detail/utils.hpp>
 #include <turbo_broccoli/detail/storage.hpp>
+#include <turbo_broccoli/type/blob_storage.hpp>
+
+#include <turbo_broccoli/type/blob.hpp>
+#include <turbo_broccoli/type/tag.hpp>
 
 namespace turbo_broccoli {
 
-struct database;
 
-struct blob {
-  //tag_list
-  //data
-  //parent_1
-  //parent_2
-  //how to handle merge issues?
-
-private:
-  database& db_;
-};
-
-
-
-using types::db_key;
+using types::hash_t;
 using types::result_key;
-using types::result_find;
+
 
 struct database {
 
+  using blob_t = blob<database>;
+  using tag_t  = tag<database>;
+
   database(const std::string& path) : storage_(path) {
+
+  }
+
+  inline blob_t blob(const std::string& key) {
+    return blob_t(*this, key);
+  }
+
+  inline tag_t tag(const std::string& key) {
+    return tag_t(*this, key);
   }
 
 
-  result_find find(const std::string& key) {
-    return find(detail::calculate_key(key));
+
+private:
+
+  inline bool store_blob(const std::string& key,
+      const std::string& data,
+      const std::list<std::string>& tag_list,
+      const std::vector<std::string>& version,
+      const std::vector<std::string>& parents) {
+
+    //check if new entry
+
+
+    //check if exists  valid key and version must fit
+
+
+    //check if is merge pare
+
+
+    types::blob_storage blob;
+    //blob.
+
+    return false;
   }
 
-  result_find find(const db_key& key) {
+  inline bool load_blob(std::string& key,
+                        std::string& data,
+                        std::list<std::string>& tag_list,
+                        std::vector<std::string>& version,
+                        std::vector<std::string>& parents) {
+    return false;
+  }
 
-    result_find result{};
-    result.success = false;
 
-
-
-    if(!value_exists(key)) {
-      std::cout << "no record with key" << types::to_string(key) << std::endl;
-      return result;
+  std::vector<blob_t> find(const std::string& key) {
+      return find(detail::hash_data(key));
     }
 
-    auto value = load_value(key);
+    std::vector<blob_t> find(const hash_t& key) {
+
+      std::vector<blob_t> result{};
+
+      if(!value_exists(key)) {
+        std::cout << "no record with key" << types::to_string(key) << std::endl;
+        return result;
+      }
+
+      auto value = load_value(key);
 
 
-    if(!is_reference(value)) {
-      std::cout << "no is_reference with key" << types::to_string(key) <<  " DATA INCONSISTENT "<< std::endl;
-      return result;
-    }
+      if(!is_reference(value)) {
+        std::cout << "no is_reference with key" << types::to_string(key) <<  " DATA INCONSISTENT "<< std::endl;
+        return result;
+      }
 
-    auto head_version = types::string_to_key(value.data);
-    if(!value_exists(head_version)) {
-      std::cout << "no head_version with key" << types::to_string(key) <<  " DATA INCONSISTENT "<< std::endl;
-      return result;
-    }
+      auto head_version = types::string_to_key(value.data);
+      if(!value_exists(head_version)) {
+        std::cout << "no head_version with key" << types::to_string(key) <<  " DATA INCONSISTENT "<< std::endl;
+        return result;
+      }
 
-    auto head_version_value = load_value(head_version);
->>>>>>>
-    if( is_blob(head_version_value)) {
-      result.success = true;
-      result.results.push_back(detail::deserialize<types::blob>(head_version_value.data));
-      return result;
-    }
+      auto head_version_value = load_value(head_version);
 
-    if(is_tag_list(head_version_value)) {
+      if( is_blob(head_version_value)) {
+        result.push_back(detail::deserialize<types::blob_storage>(head_version_value.data));
+        return result;
+      }
 
-      types::tagged_records records = detail::deserialize<types::tagged_records>(head_version_value.data);
-      for(auto& t : records.keys) {
 
-        auto k = types::string_to_key(t);
-        if(value_exists(k)) {
+      if(is_tag_list(head_version_value)) {
 
-          auto r = read_record(k);
-          if( is_blob(r)) {
-            result.success = true;
-            result.results.push_back(detail::deserialize<types::blob>(r.data));
+        types::tagged_records records = detail::deserialize<types::tagged_records>(head_version_value.data);
+        for(auto& t : records.keys) {
+
+          auto k = types::string_to_key(t);
+          if(value_exists(k)) {
+
+            auto r = read_record(k);
+            if( is_blob(r)) {
+              result.push_back(detail::deserialize<types::blob_storage>(r.data));
+            }
+            else {
+              std::cout << "inconsistent: record is not blob_storage " << t << std::endl;
+            }
           }
           else {
-            std::cout << "inconsistent: record is not blob " << t << std::endl;
+            std::cout << "inconsistent no record from tag list " << t << std::endl;
           }
         }
-        else {
-          std::cout << "inconsistent no record from tag list " << t << std::endl;
-        }
       }
+
+
+      return result;
     }
 
 
-    return result;
-  }
 
-
-  result_key store(const types::blob& new_blob) {
+  result_key store(const types::blob_storage& new_blob) {
 
     static const result_key failed_result{false, turbo_broccoli::types::nil_key() };
 
@@ -121,10 +152,10 @@ struct database {
        * read all tags and update them!
        */
       auto r = read_record(new_blob.key_hash());
-      auto old_blob = detail::deserialize<types::blob>(r.data);
+      auto old_blob = detail::deserialize<types::blob_storage>(r.data);
 
-      types::tag_list::list_type to_delete = detail::diff( old_blob.tags().tags, new_blob.tags().tags);
-      types::tag_list::list_type to_add    = detail::diff( new_blob.tags().tags, old_blob.tags().tags);
+      types::tag_list::tag_list_type to_delete = detail::diff( old_blob.tags().tags, new_blob.tags().tags);
+      types::tag_list::tag_list_type to_add    = detail::diff( new_blob.tags().tags, old_blob.tags().tags);
 
       for(auto& t : to_add ) {
         update_tag_add(t, types::to_string(new_blob.key_hash()));
@@ -148,18 +179,17 @@ struct database {
 
 
 
-private:
 
-  inline bool value_exists(const db_key& key) {
+  inline bool value_exists(const hash_t& key) {
     return storage_.record_exists(key);
   }
 
-  inline types::value_t load_value(const db_key& key) {
+  inline types::value_t load_value(const hash_t& key) {
     auto data = storage_.load(key);
     return detail::deserialize<types::value_t>(data);
   }
 
-  inline void write_blob(const types::blob& b) {
+  inline void write_blob(const types::blob_storage& b) {
     namespace fs = boost::filesystem;
     types::value_t v;
     v.data = detail::serialize(b);
@@ -169,14 +199,14 @@ private:
     storage_.store(b.key_hash(), detail::serialize(v));
   }
 
-  inline types::value_t read_record(const db_key& k) {
+  inline types::value_t read_record(const hash_t& k) {
     namespace fs = boost::filesystem;
     auto tmp = storage_.load(k);
     return detail::deserialize<types::value_t>(tmp);
   }
 
   inline void update_tag_add(const std::string& tag_name, const std::string& record_key) {
-    auto tag_key = detail::calculate_key(tag_name);
+    auto tag_key = detail::hash_data(tag_name);
     types::value_t v;
     types::tagged_records records;
 
@@ -206,7 +236,7 @@ private:
   }
 
   inline void update_tag_remove(const std::string& tag_name, const std::string& record_key) {
-    auto tag_key = detail::calculate_key(tag_name);
+    auto tag_key = detail::hash_data(tag_name);
     types::value_t v = read_record(tag_key);
 
     if(types::is_tag_list(v)) {

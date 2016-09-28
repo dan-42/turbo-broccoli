@@ -13,7 +13,7 @@
 
 namespace turbo_broccoli { namespace types {
 
-using result_key   = std::pair<bool, db_key>;
+using result_key   = std::pair<bool, hash_t>;
 
 } //type
 } //trubo_broccoli

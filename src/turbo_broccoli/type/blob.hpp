@@ -1,90 +1,140 @@
 /*
  * blob.hpp
  *
- *  Created on: Sep 24, 2016
- *      Author: dan
+ *  Created on: Sep 28, 2016
+ *      Author: frieddan
  */
 
-#ifndef SRC_TURBO_BROCCOLI_BLOB_HPP_
-#define SRC_TURBO_BROCCOLI_BLOB_HPP_
+#ifndef SRC_TURBO_BROCCOLI_TYPE_BLOB_HPP_
+#define SRC_TURBO_BROCCOLI_TYPE_BLOB_HPP_
 
-#include <boost/fusion/include/adapt_struct.hpp>
-#include <turbo_broccoli/type/tags.hpp>
+#include <turbo_broccoli/type/blob_storage.hpp>
 
-namespace turbo_broccoli { namespace types {
+namespace turbo_broccoli {
 
-
+template<typename Database>
 struct blob {
 
-  blob(): version_(0) {
+  blob(Database& db, const std::string& key) : db_(db), key_(key) {
 
   }
 
-  blob(const std::string& k, const nlohmann::json& d, const tag_list& ts) : key_(k), data_(d.dump()), tag_list_(ts), version_(0) {
-  }
-
-  blob(const std::string& k) : key_(k), data_(""), tag_list_(), version_(0) {
-  }
-
-
-  template<typename T, detail::enable_if_is_adapted_struct_t<T>* = nullptr>
-  void put( const T& t)  {
-    std::string tmp = detail::serialize(t);
-    if(data_.compare(tmp) == 0 ) {
-       return;
+  /**
+   * store all data in db, if the version is a successor of the last one
+   * and return true
+   * if there is a different change on the data, the false is returned and no data is stored
+   */
+  inline bool store() {
+    auto success = db_.store_blob(key_, data_, tag_list_, version_, parents_);
+    if(success) {
+      parents_.clear();
+      parents_.push_back(version_);
+      version_ = success.version;
+      return true;
     }
-    data_ = tmp;
-    version_++;
+    //xxx handle conflict
+
+    return false;
   }
 
-  void add_tag(const std::string& tag) {
-    for(auto& t : tag_list_.tags) {
-      if(t.compare(tag) == 0) {
-        return;
-      }
+  /**
+   * load data from data, overwrites all data in object
+   * return false if no object is found or could not be loaded
+   */
+  inline bool load() {
+    auto success = db_.load_blob(key_, data_, tag_list_, version_, parents_);
+    if(success) {
+      return true;
     }
-    tag_list_.tags.push_back(tag);
+    // xxx hanlde issues
+    return false;
   }
 
-  void remove_tag(const std::string& tag) {
-    tag_list_.tags.erase(std::remove(tag_list_.tags.begin(), tag_list_.tags.end(), tag), tag_list_.tags.end());
+
+  /**
+   * stores data in blob, no db access
+   */
+  inline bool set(const std::string& data) {
+    try {
+      data_ = data;
+      return true;
+    }
+    catch(...) {
+      return false;
+    }
   }
 
-  std::string key() const {
-    return key_;
-  }
-
-  inline db_key key_hash() const {
-    return detail::calculate_key(key_);
-  }
-
-  inline tag_list tags() const {
-    return tag_list_;
-  }
-
-  inline ::size_t version() const {
-    return version_;
-  }
-
-  inline std::string data() const {
+  /**
+   * return current data from blob, no db access
+   */
+  inline std::string get() const {
     return data_;
   }
 
-  inline void data(const std::string& d)  {
-    data_ = d;
+
+  inline bool add_tag(const std::string& tag) {
+    try {
+      for(auto& t : tag_list_) {
+        if(t.compare(tag) == 0) {
+          return true;
+        }
+      }
+      tag_list_.push_back(tag);
+      return true;
+    }
+    catch(...) {
+      return false;
+    }
   }
 
+  template<typename List>
+  inline bool add_tags(const List& tags) {
+    try {
+      for(auto& new_tag : tags) {
+        if(!add_tag(new_tag)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    catch(...) {
+      return false;
+    }
+  }
 
+  inline bool remove_tag(const std::string& tag) {
+    try {
+      tag_list_.erase(std::remove(tag_list_.begin(), tag_list_.end(), tag), tag_list_.end());
+      return true;
+    }
+    catch(...) {
+      return false;
+    }
+  }
+
+  inline std::list<std::string> tags() {
+    return tag_list_;
+  }
+
+  inline std::string version() const {
+    return version_;
+  }
+
+  inline std::list<std::string> parents() {
+    return parents_;
+  }
+
+private:
+
+  Database& db_;
+  std::string                   key_;
   std::string                   data_;
-  tag_list                      tag_list_;
-  std::string                   parent_1;
-  boost::optional<std::string>  parent_2;
+  std::list<std::string>        tag_list_;
+  std::vector<std::string>      parents_;
+  std::string                   version_;
+
 };
 
-} // type
-} //trubo_broccoli
+}
 
-BOOST_FUSION_ADAPT_STRUCT(turbo_broccoli::types::blob, data_, tag_list_, parent_1, parent_2);
-
-
-#endif /* SRC_TURBO_BROCCOLI_BLOB_HPP_ */
+#endif /* SRC_TURBO_BROCCOLI_TYPE_BLOB_HPP_ */

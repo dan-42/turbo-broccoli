@@ -27,9 +27,9 @@ namespace turbo_broccoli { namespace detail {
 
 
 
-  inline turbo_broccoli::types::db_key to_key(const unsigned int hash[5]) {
+  inline turbo_broccoli::types::hash_t to_key(const unsigned int hash[5]) {
     auto h = reinterpret_cast<const uint8_t*>(hash);
-    turbo_broccoli::types::db_key k;
+    turbo_broccoli::types::hash_t k;
     for(int i = 0; i < 5; ++i)  {
       k[i*4]  = h[i*4+3];
       k[i*4+1] = h[i*4+2];
@@ -40,7 +40,7 @@ namespace turbo_broccoli { namespace detail {
   }
 
 
-  inline turbo_broccoli::types::db_key calculate_key(const std::string data) {
+  inline turbo_broccoli::types::hash_t hash_data(const std::string data) {
     try {
       boost::uuids::detail::sha1 hasher{};
       for(auto &c : data ) {

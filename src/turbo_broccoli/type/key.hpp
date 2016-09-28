@@ -15,23 +15,23 @@
 
 namespace turbo_broccoli { namespace types {
 
-  using db_key        = std::array<uint8_t, 20>;
+  using hash_t        = std::array<uint8_t, 20>;
 
-  inline bool operator==( const db_key& lhs,  const db_key& rhs ) {
+  inline bool operator==( const hash_t& lhs,  const hash_t& rhs ) {
     return  ( 0 == std::memcmp(lhs.data(), rhs.data(), 20) );
   }
 
-  inline bool operator!=( const db_key& lhs,  const db_key& rhs ) {
+  inline bool operator!=( const hash_t& lhs,  const hash_t& rhs ) {
     return  !( 0 == std::memcmp(lhs.data(), rhs.data(), 20) );
   }
 
-  inline std::string to_string(const db_key& k) {
+  inline std::string to_string(const hash_t& k) {
     std::string s = pre::bytes::to_hexstring(k.data(), k.size());
     return s;
   }
 
-  inline db_key string_to_key(const std::string& ks) {
-    db_key k{};
+  inline hash_t string_to_key(const std::string& ks) {
+    hash_t k{};
     auto t = pre::bytes::from_hexstring(ks);
     if(t.size() == k.size() ) {
       for(::size_t i = 0; i < k.size(); ++i) {
@@ -41,8 +41,8 @@ namespace turbo_broccoli { namespace types {
     return k;
   }
 
-  inline db_key nil_key() {
-    static const db_key nil{0};
+  inline hash_t nil_key() {
+    static const hash_t nil{0};
     return nil;
   }
 
@@ -53,7 +53,7 @@ namespace turbo_broccoli { namespace types {
 
 
 template<typename OStream>
-inline OStream& operator<<(OStream& os, const turbo_broccoli::types::db_key& key) {
+inline OStream& operator<<(OStream& os, const turbo_broccoli::types::hash_t& key) {
   os << turbo_broccoli::types::to_string(key);
   return os;
 }

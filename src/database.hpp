@@ -42,8 +42,10 @@ namespace database {
 
     template<typename T, ::turbo_broccoli::detail::enable_if_is_adapted_struct_t<T>* = nullptr>
     inline void store(const std::string& key, const T& t) {
-      ::turbo_broccoli::blob b(key, pre::json::to_json(t), { tag::get_tags<T>() });
-      db_.store(b);
+      auto b = db_.blob(key);
+      b.add_tags(tag::get_tags<T>());
+      b.set(pre::json::to_json(t).dump(2));
+      b.store();
     }
 
 
@@ -51,10 +53,24 @@ namespace database {
     inline std::vector<T> find(const std::string& key) {
       std::vector<T> result{};
 
-      auto r = db_.find(key);
-      if(r.success) {
-        for(auto& b : r.results) {
-          result.push_back(::turbo_broccoli::detail::deserialize<T>(b.data()) );
+      auto blob = db_.blob(key);
+      if(blob.load() ) {
+        T tmp = ::turbo_broccoli::detail::deserialize<T>(blob.get());
+        result.push_back(tmp);
+        return result;
+      }
+
+      auto tag = db_.tag(key);
+      if(tag.load()) {
+        for(auto& entry : tag.entries()) {
+          auto tmp_blob = db_.blob(entry);
+          if(tmp_blob.load()) {
+            T tmp = ::turbo_broccoli::detail::deserialize<T>(tmp_blob.get());
+            result.push_back(tmp);
+          }
+          else {
+            std::cout << "find() inconsistent data" << std::endl;
+          }
         }
       }
       return result;

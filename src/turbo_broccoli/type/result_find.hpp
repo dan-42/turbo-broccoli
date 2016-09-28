@@ -8,15 +8,15 @@
 #ifndef SRC_TURBO_BROCCOLI_TYPE_RESULT_FIND_HPP_
 #define SRC_TURBO_BROCCOLI_TYPE_RESULT_FIND_HPP_
 
+#include <turbo_broccoli/type/blob_storage.hpp>
 #include <list>
-#include <turbo_broccoli/type/blob.hpp>
 
 namespace turbo_broccoli { namespace types {
 
 struct result_find {
 
   bool success{false};
-  std::list<blob> results{};
+  std::list<blob_storage> results{};
 
 };
 
