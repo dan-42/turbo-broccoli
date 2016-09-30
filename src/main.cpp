@@ -50,7 +50,7 @@ int main(int args, char **argc) {
     db.store("my_key_2", d);
 
 
-    auto results = db.find<my_data>("bacnet");
+    auto results = db.find<my_data>("my_key_1");
     for(auto& record : results) {
       std::cout << "record : "       <<  record.name << std::endl;
     }

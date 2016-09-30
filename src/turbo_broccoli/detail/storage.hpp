@@ -8,6 +8,7 @@
 #ifndef SRC_TURBO_BROCCOLI_DETAIL_STORAGE_HPP_
 #define SRC_TURBO_BROCCOLI_DETAIL_STORAGE_HPP_
 
+#include <boost/filesystem.hpp>
 #include <turbo_broccoli/type/key.hpp>
 
 namespace turbo_broccoli { namespace detail {
@@ -29,7 +30,7 @@ struct storage {
     }
   }
 
-  inline bool store(const turbo_broccoli::types::db_key &key, const std::string& data) {
+  inline bool store(const turbo_broccoli::types::hash_t &key, const std::string& data) {
     namespace fs = boost::filesystem;
     auto path = to_filename(key);
     if(fs::exists(path) && fs::is_regular_file(path)) {
@@ -43,7 +44,7 @@ struct storage {
     return false;
   }
 
-  inline std::string load(const turbo_broccoli::types::db_key &key) {
+  inline std::string load(const turbo_broccoli::types::hash_t &key) {
     namespace fs = boost::filesystem;
     auto path = to_filename(key);
     if(fs::exists(path) && fs::is_regular_file(path)) {
@@ -52,7 +53,7 @@ struct storage {
     return {};
   }
 
-  inline bool remove(const turbo_broccoli::types::db_key &key) {
+  inline bool remove(const turbo_broccoli::types::hash_t &key) {
     namespace fs = boost::filesystem;
     auto path = to_filename(key);
     if(fs::exists(path) && fs::is_regular_file(path)) {
@@ -61,7 +62,7 @@ struct storage {
     return false;
   }
 
-  inline bool record_exists(const turbo_broccoli::types::db_key &key) {
+  inline bool record_exists(const turbo_broccoli::types::hash_t &key) {
     namespace fs = boost::filesystem;
     auto file = to_filename(key);
     return fs::exists(file) && fs::is_regular_file(file);
@@ -98,12 +99,12 @@ private:
   }
 
 
-  inline bool create_folder(const turbo_broccoli::types::db_key& key) {
+  inline bool create_folder(const turbo_broccoli::types::hash_t& key) {
    namespace fs = boost::filesystem;
    return fs::create_directories(prefix_ / fs::path(pre::bytes::to_hexstring(key.data(), 2)));
   }
 
-  inline boost::filesystem::path to_filename(const turbo_broccoli::types::db_key &k) {
+  inline boost::filesystem::path to_filename(const turbo_broccoli::types::hash_t &k) {
    namespace fs = boost::filesystem;
    return prefix_ / fs::path(pre::bytes::to_hexstring(&k[0], 2)) / fs::path(pre::bytes::to_hexstring(&k[2] , 18));
   }

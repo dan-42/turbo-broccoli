@@ -5,17 +5,17 @@
  *      Author: frieddan
  */
 
-#ifndef SRC_TURBO_BROCCOLI_TYPE_TAG_HPP_
-#define SRC_TURBO_BROCCOLI_TYPE_TAG_HPP_
+#ifndef SRC_TURBO_BROCCOLI_TYPE_TAGIMPL_HPP_
+#define SRC_TURBO_BROCCOLI_TYPE_TAGIMPL_HPP_
 
 
 
 namespace turbo_broccoli {
 
 template<typename Database>
-struct tag {
+struct tag_impl {
 
-  tag(Database& db, const std::string& key) : db_(db) {
+  tag_impl(Database& db, const std::string& key) : db_(db) {
 
   }
 
@@ -85,4 +85,4 @@ private:
 }
 
 
-#endif /* SRC_TURBO_BROCCOLI_TYPE_TAG_HPP_ */
+#endif /* SRC_TURBO_BROCCOLI_TYPE_TAGIMPL_HPP_ */

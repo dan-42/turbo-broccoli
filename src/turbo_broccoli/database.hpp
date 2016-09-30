@@ -18,9 +18,9 @@
 #include <turbo_broccoli/detail/utils.hpp>
 #include <turbo_broccoli/detail/storage.hpp>
 #include <turbo_broccoli/type/blob_storage.hpp>
+#include <turbo_broccoli/type/blobimpl.hpp>
 
-#include <turbo_broccoli/type/blob.hpp>
-#include <turbo_broccoli/type/tag.hpp>
+#include <turbo_broccoli/type/tagimpl.hpp>
 
 namespace turbo_broccoli {
 
@@ -31,173 +31,117 @@ using types::result_key;
 
 struct database {
 
-  using blob_t = blob<database>;
-  using tag_t  = tag<database>;
+  using blob_t = blob_impl<database>;
+  using tag_t  = tag_impl<database>;
+
+  friend blob_t;
+  friend tag_t;
 
   database(const std::string& path) : storage_(path) {
 
   }
 
   inline blob_t blob(const std::string& key) {
-    return blob_t(*this, key);
+    return blob_t{*this, key};
   }
 
   inline tag_t tag(const std::string& key) {
-    return tag_t(*this, key);
+    return tag_t{*this, key};
   }
 
 
 
 private:
 
-  inline bool store_blob(const std::string& key,
-      const std::string& data,
-      const std::list<std::string>& tag_list,
-      const std::vector<std::string>& version,
-      const std::vector<std::string>& parents) {
+  inline std::pair<bool, std::string> store_blob(   const std::string&                key,
+                                                    const std::string&                data,
+                                                    const std::vector<std::string>&   tag_list,
+                                                    const std::string&                version,
+                                                    const std::vector<std::string>&   parents) {
 
-    //check if new entry
+    auto hash_key = detail::hash_data(key);
+    if(storage_.record_exists(hash_key)) {
 
+      auto head_version_key = load_reference(hash_key);
+      if(head_version_key.compare(version) == 0) {
 
-    //check if exists  valid key and version must fit
-
-
-    //check if is merge pare
-
-
-    types::blob_storage blob;
-    //blob.
-
-    return false;
-  }
-
-  inline bool load_blob(std::string& key,
-                        std::string& data,
-                        std::list<std::string>& tag_list,
-                        std::vector<std::string>& version,
-                        std::vector<std::string>& parents) {
-    return false;
-  }
-
-
-  std::vector<blob_t> find(const std::string& key) {
-      return find(detail::hash_data(key));
-    }
-
-    std::vector<blob_t> find(const hash_t& key) {
-
-      std::vector<blob_t> result{};
-
-      if(!value_exists(key)) {
-        std::cout << "no record with key" << types::to_string(key) << std::endl;
-        return result;
-      }
-
-      auto value = load_value(key);
-
-
-      if(!is_reference(value)) {
-        std::cout << "no is_reference with key" << types::to_string(key) <<  " DATA INCONSISTENT "<< std::endl;
-        return result;
-      }
-
-      auto head_version = types::string_to_key(value.data);
-      if(!value_exists(head_version)) {
-        std::cout << "no head_version with key" << types::to_string(key) <<  " DATA INCONSISTENT "<< std::endl;
-        return result;
-      }
-
-      auto head_version_value = load_value(head_version);
-
-      if( is_blob(head_version_value)) {
-        result.push_back(detail::deserialize<types::blob_storage>(head_version_value.data));
-        return result;
-      }
-
-
-      if(is_tag_list(head_version_value)) {
-
-        types::tagged_records records = detail::deserialize<types::tagged_records>(head_version_value.data);
-        for(auto& t : records.keys) {
-
-          auto k = types::string_to_key(t);
-          if(value_exists(k)) {
-
-            auto r = read_record(k);
-            if( is_blob(r)) {
-              result.push_back(detail::deserialize<types::blob_storage>(r.data));
-            }
-            else {
-              std::cout << "inconsistent: record is not blob_storage " << t << std::endl;
-            }
-          }
-          else {
-            std::cout << "inconsistent no record from tag list " << t << std::endl;
-          }
+        types::tag_list tags{tag_list};
+        types::blob_storage new_blob{data, tag_list,  parents};
+        auto new_version = store_new_blob(new_blob);
+        if(new_version.empty()) {
+          std::cout << "database store_blob new_version empty" << std::endl;
+          return {false, ""};
         }
+
+        if( update_reference(hash_key, new_version) == false) {
+          std::cout << "database store_blob update ref" << std::endl;
+          return {false, ""};
+        }
+        return {true , new_version};
+      }
+      else {
+        // conflict!
+        std::cout << "database store_blob  confilict" << std::endl;
       }
 
-
-      return result;
-    }
-
-
-
-  result_key store(const types::blob_storage& new_blob) {
-
-    static const result_key failed_result{false, turbo_broccoli::types::nil_key() };
-
-    if(value_exists(new_blob.key_hash())) {
-      /*
-       * read all tags and update them!
-       */
-      auto r = read_record(new_blob.key_hash());
-      auto old_blob = detail::deserialize<types::blob_storage>(r.data);
-
-      types::tag_list::tag_list_type to_delete = detail::diff( old_blob.tags().tags, new_blob.tags().tags);
-      types::tag_list::tag_list_type to_add    = detail::diff( new_blob.tags().tags, old_blob.tags().tags);
-
-      for(auto& t : to_add ) {
-        update_tag_add(t, types::to_string(new_blob.key_hash()));
-      }
-      for(auto& t : to_delete ) {
-        update_tag_remove(t, types::to_string(new_blob.key_hash()));
-      }
+      return {false, ""};
     }
     else {
-      for(auto& t : new_blob.tags().tags ) {
-        update_tag_add(t, types::to_string(new_blob.key_hash()));
+      types::tag_list tags{tag_list};
+      types::blob_storage new_blob{data, tag_list, {""} };
+      auto new_version = store_new_blob(new_blob);
+      if(new_version.empty()) {
+
+        return {false, ""};
       }
+      if(new_reference(hash_key, new_version) == false) {
+
+        return {false, ""};
+      }
+      return {true , new_version};
     }
-    write_blob(new_blob);
-    return {true, new_blob.key_hash()};
-
-
-
-    return failed_result;
   }
 
 
 
+  inline bool load_blob(const std::string&              key,
+                              std::string&              data,
+                              std::vector<std::string>& tag_list,
+                              std::string&              version,
+                              std::vector<std::string>& parents) {
 
-  inline bool value_exists(const hash_t& key) {
-    return storage_.record_exists(key);
+    auto hash_key = detail::hash_data(key);
+    if(!storage_.record_exists(hash_key)) {
+      std::cout << "database load_blob  !record_exists" << std::endl;
+      return false;
+    }
+
+    auto value = load_value(hash_key);
+    if(!types::is_reference(value)) {
+      std::cout << "database load_blob  !is_reference" << std::endl;
+      return false;
+    }
+
+    auto head_version = types::string_to_key(value.data);
+    if(!storage_.record_exists(head_version)) {
+      std::cout << "database load_blob  !record_exists version " << value.data << std::endl;
+      return false;
+    }
+
+    auto blob = load_existing_blob(head_version);
+    std::cout << "database load_blob   value.data " << value.data << std::endl;
+    std::cout << "database load_blob   blob.data(); " << blob.data() << std::endl;
+
+    data      = blob.data();
+    tag_list  = blob.tags();
+    version   = value.data;
+    parents   = blob.parents();
+
+    return true;
   }
 
-  inline types::value_t load_value(const hash_t& key) {
-    auto data = storage_.load(key);
-    return detail::deserialize<types::value_t>(data);
-  }
 
-  inline void write_blob(const types::blob_storage& b) {
-    namespace fs = boost::filesystem;
-    types::value_t v;
-    v.data = detail::serialize(b);
-    v.reccord_type = types::value_type::blob;
-    v.key = b.key();
-
-    storage_.store(b.key_hash(), detail::serialize(v));
-  }
+/*
 
   inline types::value_t read_record(const hash_t& k) {
     namespace fs = boost::filesystem;
@@ -245,6 +189,87 @@ private:
       v.data = detail::serialize(records);
       storage_.store(tag_key,  detail::serialize(v));
     }
+  }
+
+*/
+
+
+  inline std::string store_new_blob(const turbo_broccoli::types::blob_storage &blob) {
+
+    auto data = detail::serialize(blob);
+    if(data.empty()) {
+      return "";
+    }
+    return store_hashed_data(data);
+  }
+
+  inline std::string store_hashed_data(const std::string& data) {
+    try {
+      auto key = detail::hash_data(data);
+      if(storage_.store(key, data)) {
+        return types::to_string(key);
+      }
+      else {
+        return {""};
+      }
+    }
+    catch(...) {
+      return {""};
+    }
+  }
+
+  inline types::blob_storage  load_existing_blob(const turbo_broccoli::types::hash_t &key) {
+    auto value = load_value(key);
+    std::cout << "load_existing_blob: " << value.data << std::endl;
+    if(types::is_blob(value)) {
+      return detail::deserialize<types::blob_storage>(value.data);
+    }
+    else {
+      return {};
+    }
+  }
+
+  inline bool new_reference(const turbo_broccoli::types::hash_t& key, const std::string& version) {
+    types::value_t value{types::value_type::reference, version};
+    if(store_value(key, value)) {
+
+      return true;
+    }
+    std::cout << "database update_reference fail "<< std::endl;
+    return false;
+  }
+
+
+  inline std::string  load_reference(const turbo_broccoli::types::hash_t &key) {
+    auto value = load_value(key);
+    if(types::is_reference(value)) {
+      return value.data;
+    }
+    else {
+      return {""};
+    }
+  }
+
+
+  inline bool update_reference(const turbo_broccoli::types::hash_t& key, const std::string& version) {
+    auto value = load_value(key);
+    if(types::is_reference(value)) {
+      value.data = version;
+      store_value(key, value);
+    }
+    std::cout << "database update_reference fail "<< std::endl;
+    return false;
+  }
+
+  inline types::value_t load_value(const turbo_broccoli::types::hash_t &key) {
+    auto data = storage_.load(key);
+    std::cout << "load_value(" << types::to_string(key) << ") "  << data << std::endl << std::endl;
+    return detail::deserialize<types::value_t>(data);
+  }
+
+  inline bool store_value(const turbo_broccoli::types::hash_t &key, const turbo_broccoli::types::value_t &value) {
+    auto data = detail::serialize(value);
+    return storage_.store(key, data);
   }
 
 

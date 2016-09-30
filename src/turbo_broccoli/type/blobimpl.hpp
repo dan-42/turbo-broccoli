@@ -5,17 +5,17 @@
  *      Author: frieddan
  */
 
-#ifndef SRC_TURBO_BROCCOLI_TYPE_BLOB_HPP_
-#define SRC_TURBO_BROCCOLI_TYPE_BLOB_HPP_
+#ifndef SRC_TURBO_BROCCOLI_TYPE_BLOBIMPL_HPP_
+#define SRC_TURBO_BROCCOLI_TYPE_BLOBIMPL_HPP_
 
 #include <turbo_broccoli/type/blob_storage.hpp>
 
 namespace turbo_broccoli {
 
 template<typename Database>
-struct blob {
+struct blob_impl {
 
-  blob(Database& db, const std::string& key) : db_(db), key_(key) {
+  blob_impl(Database& db, const std::string& key) : db_(db), key_(key) {
 
   }
 
@@ -26,10 +26,10 @@ struct blob {
    */
   inline bool store() {
     auto success = db_.store_blob(key_, data_, tag_list_, version_, parents_);
-    if(success) {
+    if(success.first) {
       parents_.clear();
       parents_.push_back(version_);
-      version_ = success.version;
+      version_ = success.second;
       return true;
     }
     //xxx handle conflict
@@ -112,7 +112,7 @@ struct blob {
     }
   }
 
-  inline std::list<std::string> tags() {
+  inline std::vector<std::string> tags() {
     return tag_list_;
   }
 
@@ -120,7 +120,7 @@ struct blob {
     return version_;
   }
 
-  inline std::list<std::string> parents() {
+  inline std::vector<std::string> parents() {
     return parents_;
   }
 
@@ -129,7 +129,7 @@ private:
   Database& db_;
   std::string                   key_;
   std::string                   data_;
-  std::list<std::string>        tag_list_;
+  std::vector<std::string>      tag_list_;
   std::vector<std::string>      parents_;
   std::string                   version_;
 
@@ -137,4 +137,4 @@ private:
 
 }
 
-#endif /* SRC_TURBO_BROCCOLI_TYPE_BLOB_HPP_ */
+#endif /* SRC_TURBO_BROCCOLI_TYPE_BLOBIMPL_HPP_ */

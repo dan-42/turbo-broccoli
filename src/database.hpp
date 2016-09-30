@@ -32,7 +32,6 @@ template<typename T> std::vector<std::string> inline get_tags() { return {}; }
 
 namespace database {
 
-  using blob = ::turbo_broccoli::blob;
 
   struct database {
 
@@ -55,6 +54,7 @@ namespace database {
 
       auto blob = db_.blob(key);
       if(blob.load() ) {
+        std::cout << "load " << blob.get() << std::endl;
         T tmp = ::turbo_broccoli::detail::deserialize<T>(blob.get());
         result.push_back(tmp);
         return result;

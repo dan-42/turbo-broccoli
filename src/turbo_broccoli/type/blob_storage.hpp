@@ -17,7 +17,7 @@ namespace turbo_broccoli { namespace types {
 struct blob_storage {
 
 
-  blob_storage(const std::string& d, const tag_list& ts, const std::vector<std::string>& parents,)
+  blob_storage(const std::string& d, const std::vector<std::string>& ts, const std::vector<std::string>& parents)
               : data_(d),
                 tag_list_(ts),
                 parents_(parents) {
@@ -37,20 +37,20 @@ struct blob_storage {
   }
 
   void add_tag(const std::string& tag) {
-    for(auto& t : tag_list_.tags) {
+    for(auto& t : tag_list_) {
       if(t.compare(tag) == 0) {
         return;
       }
     }
-    tag_list_.tags.push_back(tag);
+    tag_list_.push_back(tag);
   }
 
   void remove_tag(const std::string& tag) {
-    tag_list_.tags.erase(std::remove(tag_list_.tags.begin(), tag_list_.tags.end(), tag), tag_list_.tags.end());
+    tag_list_.erase(std::remove(tag_list_.begin(), tag_list_.end(), tag), tag_list_.end());
   }
 
 
-  inline tag_list tags() const {
+  inline std::vector<std::string> tags() const {
     return tag_list_;
   }
 
@@ -67,13 +67,13 @@ struct blob_storage {
     return parents_;
   }
 
-  inline void parents(const std::vector<std::string>& parents) const {
-    parents_ = parents;
+  inline void parents(const std::vector<std::string>& ps) {
+    parents_ = ps;
   }
 
 
   std::string                   data_;
-  tag_list                      tag_list_;
+  std::vector<std::string>      tag_list_;
   std::vector<std::string>      parents_;
 };
 

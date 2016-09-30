@@ -31,7 +31,7 @@ namespace turbo_broccoli { namespace detail {
     auto h = reinterpret_cast<const uint8_t*>(hash);
     turbo_broccoli::types::hash_t k;
     for(int i = 0; i < 5; ++i)  {
-      k[i*4]  = h[i*4+3];
+      k[i*4]   = h[i*4+3];
       k[i*4+1] = h[i*4+2];
       k[i*4+2] = h[i*4+1];
       k[i*4+3] = h[i*4];
@@ -73,8 +73,10 @@ namespace turbo_broccoli { namespace detail {
       return pre::json::from_json<T>(nlohmann::json::parse(data));
     }
     catch(...) {
-      return T{};
+      std::cout << "detail::deserialize() error " << data << std::endl;
+      throw std::runtime_error("detail::deserialize() error ");
     }
+    return T{};
   }
 
 
